@@ -7,13 +7,19 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 export default function App() {
   const [sites, setSites] = useState([])
+  const [user, setUser] = useState(null)
+  // Form states
   const [siteName, setSiteName] = useState('')
   const [address, setAddress] = useState('')
   const [visitDate, setVisitDate] = useState('')
   const [notes, setNotes] = useState('')
   const [photo, setPhoto] = useState(null)
-  const [user, setUser] = useState(null)
+  // Login states
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
+  // SECTION 1: Load data on start
   useEffect(() => {
     getSites()
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,37 +32,58 @@ export default function App() {
     setSites(data)
   }
 
+  // SECTION 2: Auth
+  async function signIn(e) {
+    e.preventDefault()
+    setError('')
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) setError(error.message)
+    else window.location.reload()
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut()
+    window.location.reload()
+  }
+
+  // SECTION 3: CRUD
   async function addSite(e) {
     e.preventDefault()
     let photoUrl = ''
     if (photo) {
       const fileName = `${Date.now()}-${photo.name}`
-      const { data } = await supabase.storage.from('site-photos').upload(fileName, photo)
+      await supabase.storage.from('site-photos').upload(fileName, photo)
       photoUrl = supabase.storage.from('site-photos').getPublicUrl(fileName).data.publicUrl
     }
     await supabase.from('sites').insert([{ 
-      site_name: siteName, address, visit_date: visitDate, notes, photo_url: photoUrl, user_id: user?.id 
+      site_name: siteName, address, visit_date: visitDate, notes, photo_url: photoUrl, user_id: user.id 
     }])
     setSiteName(''); setAddress(''); setVisitDate(''); setNotes(''); setPhoto(null)
     getSites()
   }
 
   async function deleteSite(id) {
-    await supabase.auth.signInWithPassword({ email: 'test@admin.com', password: 'admin123' })
+    await supabase.from('sites').delete().eq('id', id)
     getSites()
   }
 
-  async function signIn() {
-    await supabase.auth.signInWithPassword({ email: 'your-email@gmail.com', password: 'your-password' })
-    window.location.reload()
-  }
-
-  if (!user) return <div style={{padding:20}}><h2>Login Required</h2><button onClick={signIn}>Login</button></div>
+  // SECTION 4: UI
+  if (!user) return (
+    <div style={{padding:20, maxWidth:400, margin:'auto'}}>
+      <h2>Login</h2>
+      <form onSubmit={signIn}>
+        <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required /><br/><br/>
+        <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} required /><br/><br/>
+        <button type="submit">Login</button>
+        {error && <p style={{color:'red'}}>{error}</p>}
+      </form>
+    </div>
+  )
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: 'auto' }}>
       <h1>Property Visit Tracker</h1>
-      <p>Logged in as: {user.email}</p>
+      <p>Logged in as: {user.email} <button onClick={signOut}>Logout</button></p>
       
       <form onSubmit={addSite} style={{border:'1px solid #ccc', padding:15, borderRadius:8}}>
         <h3>Add New Visit</h3>
