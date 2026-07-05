@@ -9,3 +9,25 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey)
+
+function App() {
+  const [sites, setSites] = useState([])
+
+  useEffect(() => {
+    getSites()
+  }, [])
+
+  async function getSites() {
+    const { data } = await supabase.from('sites').select('*')
+    setSites(data)
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>Property Visit Tracker</h1>
+      <p>If you see this, Supabase is connected ✅</p>
+    </div>
+  )
+}
+
+export default App  // <-- THIS LINE WAS MISSING
